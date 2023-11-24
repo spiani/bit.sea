@@ -204,8 +204,8 @@ def generate_basins_for_adriatic(bathymetry):
     zone_32_33_34_35_lat = [43.60546875,43.60546875,43.96484375,43.96484375]
 
     z32 = BathymetricPolygon(zone_32_33_34_35_lon, zone_32_33_34_35_lat, bathymetry, shallower_than=20)
-    z33 = BathymetricPolygon(zone_32_33_34_35_lon, zone_32_33_34_35_lat, bathymetry, shallower_than=35, deeper_than=20)
-    z34 = BathymetricPolygon(zone_32_33_34_35_lon, zone_32_33_34_35_lat, bathymetry, shallower_than=35, deeper_than=35)
+    z33 = BathymetricPolygon(zone_32_33_34_35_lon, zone_32_33_34_35_lat, bathymetry, shallower_than=30, deeper_than=20)
+    z34 = BathymetricPolygon(zone_32_33_34_35_lon, zone_32_33_34_35_lat, bathymetry, shallower_than=35, deeper_than=30)
     z35 = BathymetricPolygon(zone_32_33_34_35_lon, zone_32_33_34_35_lat, bathymetry, shallower_than=220, deeper_than=35)
 
     z32 = SimpleBathymetricBasin("zone32", z32)
@@ -217,6 +217,54 @@ def generate_basins_for_adriatic(bathymetry):
     basins.append(z33)
     basins.append(z34)
     basins.append(z35)
+
+    # ZONE 36 - 39  WEST SOUTH BC
+    zone_36_37_38_39_lon = [12.22265625,14.59765625,14.40234375,12.22265625]
+    zone_36_37_38_39_lat = [43.47265625,43.47265625,43.59765625,43.59765625]
+
+    z36 = BathymetricPolygon(zone_36_37_38_39_lon, zone_36_37_38_39_lat, bathymetry, shallower_than=20)
+    z37 = BathymetricPolygon(zone_36_37_38_39_lon, zone_36_37_38_39_lat, bathymetry, shallower_than=30, deeper_than=20)
+    z38 = BathymetricPolygon(zone_36_37_38_39_lon, zone_36_37_38_39_lat, bathymetry, shallower_than=35, deeper_than=30)
+    z39 = BathymetricPolygon(zone_36_37_38_39_lon, zone_36_37_38_39_lat, bathymetry, shallower_than=220, deeper_than=35)
+
+    z36 = SimpleBathymetricBasin("zone36", z36)
+    z37 = SimpleBathymetricBasin("zone37", z37)
+    z38 = SimpleBathymetricBasin("zone38", z38)
+    z39 = SimpleBathymetricBasin("zone39", z39)
+
+    basins.append(z36)
+    basins.append(z37)
+    basins.append(z38)
+    basins.append(z39)
+        
+    # ZONE 40  MIDDLE SOUTH ADRI
+    zone_40_lon = [14.59765625,15.41796875,15.26171875,14.40234375]
+    zone_40_lat = [43.47265625,43.47265625,43.59765625,43.59765625]
+
+    z40 = Polygon(zone_40_lon, zone_40_lat)
+
+    z40 = SimpleBasin("zone40", z40)
+    basins.append(z40)
+        
+    # ZONE 41-44  EAST SOUTH ADRI
+    zone_41_42_43_44_lon = [15.41796875,16.07421875,16.07421875,15.26171875]
+    zone_41_42_43_44_lat = [43.47265625,43.47265625,43.59765625,43.59765625]
+
+    z41 = BathymetricPolygon(zone_41_42_43_44_lon, zone_41_42_43_44_lat, bathymetry, shallower_than=20)
+    z42 = BathymetricPolygon(zone_41_42_43_44_lon, zone_41_42_43_44_lat, bathymetry, shallower_than=30, deeper_than=20)
+    z43 = BathymetricPolygon(zone_41_42_43_44_lon, zone_41_42_43_44_lat, bathymetry, shallower_than=35, deeper_than=30)
+    z44 = BathymetricPolygon(zone_41_42_43_44_lon, zone_41_42_43_44_lat, bathymetry, shallower_than=220, deeper_than=35)
+
+    z41 = SimpleBathymetricBasin("zone41", z41)
+    z42 = SimpleBathymetricBasin("zone42", z42)
+    z43 = SimpleBathymetricBasin("zone43", z43)
+    z44 = SimpleBathymetricBasin("zone44", z44)
+
+    basins.append(z41)
+    basins.append(z42)
+    basins.append(z43)
+    basins.append(z44)
+        
 
     return tuple(basins)
 
