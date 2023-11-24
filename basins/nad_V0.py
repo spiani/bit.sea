@@ -1,5 +1,5 @@
-from basins.region import BathymetricPolygon
-from basins.basin import SimpleBathymetricBasin
+from basins.region import BathymetricPolygon, Polygon
+from basins.basin import SimpleBathymetricBasin, SimpleBasin
 
 def generate_basins_for_adriatic(bathymetry):
     basins = []
@@ -194,9 +194,10 @@ def generate_basins_for_adriatic(bathymetry):
     zone_31_lon = [14.40234375,15.26171875,14.75390625,14.01171875]
     zone_31_lat = [43.60546875,43.60546875,43.96484375,43.96484375]
 
-    z31 = BathymetricPolygon(zone_31_lon, zone_31_lat, bathymetry, shallower_than=220, deeper_than=35)
+    z31 = Polygon(zone_31_lon, zone_31_lat)
 
-    z31 = SimpleBathymetricBasin("zone31", z31)
+    z31 = SimpleBasin("zone31", z31)
+    basins.append(z31)
 
     # ZONE 32 - 35  EAST MARCHE ADRI
     zone_32_33_34_35_lon = [15.26171875,16.04296875,16.04296875,14.75390625]
