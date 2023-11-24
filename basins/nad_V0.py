@@ -8,9 +8,9 @@ def generate_basins_for_adriatic(bathymetry):
     zone_1_5_9_lon = [12.22265625, 13.30859375, 13.30859375, 12.22265625]
     zone_1_5_9_lat = [44.61328125, 44.61328125, 45.10546875, 45.10546875]
 
-    z1 = BathymetricPolygon(zone_1_5_9_lon, zone_1_5_9_lat, bathymetry, upper_than=20)
-    z5 = BathymetricPolygon(zone_1_5_9_lon, zone_1_5_9_lat, bathymetry, upper_than=30, lower_than=20)
-    z9 = BathymetricPolygon(zone_1_5_9_lon, zone_1_5_9_lat, bathymetry, upper_than=35, lower_than=30)
+    z1 = BathymetricPolygon(zone_1_5_9_lon, zone_1_5_9_lat, bathymetry, shallower_than=20)
+    z5 = BathymetricPolygon(zone_1_5_9_lon, zone_1_5_9_lat, bathymetry, shallower_than=30, deeper_than=20)
+    z9 = BathymetricPolygon(zone_1_5_9_lon, zone_1_5_9_lat, bathymetry, shallower_than=35, deeper_than=30)
 
     z1 = SimpleBathymetricBasin("z1", z1)
     z5 = SimpleBathymetricBasin("z5", z5)
