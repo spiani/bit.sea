@@ -264,7 +264,6 @@ def generate_basins_for_adriatic(bathymetry):
     basins.append(z42)
     basins.append(z43)
     basins.append(z44)
-        
-
+ 
     return tuple(basins)
 

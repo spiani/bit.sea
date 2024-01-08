@@ -70,6 +70,8 @@ class Basin(object):
             alpha=alpha
         )
 
+        return lon_grid,lat_grid,inside_domain
+
 
 class SimpleBasin(Basin):
     def __init__(self, name, region, extended_name=None):
