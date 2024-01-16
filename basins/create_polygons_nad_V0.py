@@ -9,42 +9,10 @@ mask_bathymetry = MaskBathymetry.build_bathymetry(mask)
 
 bathymetry = mask_bathymetry
 
-def write_text(fid,i,lon,lat):
-        fid.write('zone'+str(i+1)+'=Polygon([')
-        ncolumns = 5
-        lmax =lon.shape[0]
-        nrows=int(lmax/ncolumns)
+def write_text_csv(i,lon,lat):
 # print longitude
-        count=0
-        for nr in range(nrows+1): 
-            for nc in range(ncolumns):
-                fid.write(str(lon[count]))
-                if count == lmax-1:
-                    fid.write('],')
-                    break
-                else:
-                    count+=1
-                    fid.write(',')
-            fid.write('\n')
-            if count == lmax-1:
-                break
-            fid.write(' '*len('zone'+str(i+1)+'=Polygon(['))
-# print latitude
-        count=0
-        fid.write(' '*len('zone'+str(i+1)+'=Polygon(')+'[')
-        for nr in range(nrows+1):
-            for nc in range(ncolumns):
-                fid.write(str(lat[count]))
-                if count ==  lmax-1:
-                    fid.write('])')
-                    break
-                else:
-                    fid.write(',')
-                    count+=1
-            fid.write('\n')
-            if count == lmax-1:
-                break
-            fid.write(' '*len('zone'+str(i+1)+'=Polygon(['))
+    filename='NAD_CADEUAU_DATA/basin_' + str(i+1).zfill(3)+'.txt'
+    np.savetxt(filename,(lon,lat))
 
 def plot_basins():
     import matplotlib.pyplot as plt
@@ -57,8 +25,7 @@ def plot_basins():
 
     # colors = ["blue", "green", "gold", "pink", "red", "orange", "olive", "purple", "cyan"]
     cmap = plt.get_cmap('nipy_spectral')
-    with open('polygons.txt', 'w') as fid:   
-        with PdfPages('prova01_countours.pdf') as pdf:
+    with PdfPages('prova01_countours.pdf') as pdf:
             plt.figure(dpi=1200)
             axes = plt.gca()
     
@@ -81,15 +48,8 @@ def plot_basins():
     #              [32.0,32.0,40.0,40.0])
     #alb = SimplePolygonalBasin('alb', alb, 'Alboran Sea')
 
-                fid.write('\n')
-                write_text(fid,i,lon[x],lat[y])
-                fid.write('\n')
-                fid.write('zone'+str(i+1)+'=SimplePolygonalBasin(\'zone_' + str(i+1) + '\',' + 'zone_' + str(i+1) + ',\'zone_' + str(i+1) +'\')')
-                fid.write('\n')
-                list_basins.append('zone_' + str(i+1))
+                write_text_csv(i,lon[x],lat[y])
     
-    #           print(f'    zone_{i}_lon = {lon[x]}')
-    #           print(f'    zone_{i}_lat = {lat[y]}')
                 print("        ")
                 plt.pcolor(data)
                 plt.plot(x,y)
@@ -102,8 +62,5 @@ def plot_basins():
     #       scale='10m',
     #       facecolor=(0.5, 0.5, 0.5, 0.8))
     #   axes.add_feature(land, zorder=2)
-
-        fid.write('\n')
-        fid.write('P    = ComposedBasin(\'P\',[ '+ str(list_basins)[1:-1] + '])')
 
 plot_basins()
