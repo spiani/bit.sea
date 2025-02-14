@@ -18,6 +18,7 @@ netcdf4 = "^1.6.5"
 cartopy = "^0.23.0"
 geopy = "^1.4.0"
 coverage = "^7.6.4"
+numba = ">0.58"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
