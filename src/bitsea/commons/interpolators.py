@@ -1,4 +1,8 @@
+from numbers import Real
+from typing import Optional
+
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy import interpolate
 from scipy.interpolate import griddata
 from scipy.interpolate import RegularGridInterpolator
@@ -6,6 +10,298 @@ from scipy.interpolate import RegularGridInterpolator
 from bitsea.commons.dataextractor import DataExtractor
 from bitsea.commons.mask import Mask
 from bitsea.commons.utils import data_for_linear_interp
+
+
+def _find_interval_overlapping(
+    original: np.ndarray, new_domain: np.ndarray
+) -> np.ndarray:
+    """
+    For each interval of the new domain, returns all the original intervals that
+    overlap or are contained in it.
+
+    This function takes as input two arrays: the first one, `original`,
+    represent a sequence of `n` contiguous intervals over the real number line,
+    where the `n`-th interval goes from `original[n]` to `original[n + 1]`.
+    In the very same way, the second array, `new_domain`, represents a different
+    sequence of `m` intervals over the real number line. This function returns
+    an array of size `m x 2` such that the points from `output[m, 0]` to
+    `output[m, 1]` are the union of all the original intervals that overlaps
+    the `m`-th interval of `new_domain`.
+
+    This function is designed to be used internally and, therefore, does not
+    perform any sanity check on the input arrays.
+    It is important that both the arrays have more than 1 element and that
+    they are sorted in ascending order.
+
+    Args:
+        original: a 1D array of size `n + 1` representing the original
+            intervals.
+        new_domain: a 1D array of size `m + 1` representing the new intervals.
+
+    Return: a 2D array of size `m x 2`
+    """
+    n = max(original.size - 1, 0)
+    m = max(new_domain.size - 1, 0)
+
+    output = np.zeros((m, 2), dtype=int)
+
+    # If the input does not contain values, we return an empty vector
+    if m == 0 or n == 0:
+        return output
+
+    for i in range(m):
+        if i == 0:
+            start_point = 0
+        else:
+            start_point = output[i - 1][0]
+
+        # Find the first point on the left for this interval; we start our
+        # search by the first
+        for k in range(start_point, n):
+            if original[k + 1] > new_domain[i]:
+                output[i, 0] = k
+                break
+        else:
+            output[i, 0] = n
+
+        for k in range(output[i, 0], n):
+            if original[k] > new_domain[i + 1]:
+                output[i, 1] = k
+                break
+        else:
+            output[i, 1] = n
+
+    return output
+
+
+def _build_cell_associations(
+    lat_associations: np.ndarray,
+    lon_associations: np.ndarray,
+    fine_mask: np.ndarray,
+    n_lat_cells: int,
+    n_lon_cells: int,
+    lat_indices: np.ndarray,
+    lon_indices: np.ndarray,
+):
+    for i in range(n_lat_cells):
+        for j in range(n_lon_cells):
+            cell_index = i * n_lon_cells + j
+            associations_found = 0
+            for k1 in range(lat_associations[i, 0], lat_associations[i, 1]):
+                for k2 in range(lon_associations[j, 0], lon_associations[j, 1]):
+                    if not fine_mask[k1, k2]:
+                        continue
+                    lat_indices[cell_index, associations_found] = k1
+                    lon_indices[cell_index, associations_found] = k2
+                    associations_found += 1
+
+
+def _compute_area_subdivision(
+    lat_indices,
+    lon_indices,
+    fine_domain_lat_boundaries,
+    fine_domain_lon_boundaries,
+    coarse_domain_lat_boundaries,
+    coarse_domain_lon_boundaries,
+    valid_cells,
+    area_subdivision_factor,
+):
+    n_cells = area_subdivision_factor.shape[0]
+    n_subdivisions = area_subdivision_factor.shape[1]
+
+    for cell_index in range(n_cells):
+        if not valid_cells[cell_index]:
+            continue
+        lat_cell_index = cell_index // (coarse_domain_lon_boundaries.size - 1)
+        lon_cell_index = cell_index % (coarse_domain_lon_boundaries.size - 1)
+        for i in range(n_subdivisions):
+            sub_index_lat = lat_indices[cell_index, i]
+            if sub_index_lat == -1:
+                break
+            sub_index_lon = lon_indices[cell_index, i]
+
+            # Compute the coordinates of the boundaries of the current cell.
+            # We use radians to simplify the formulas later
+            cell_lat_min = (
+                max(
+                    coarse_domain_lat_boundaries[lat_cell_index],
+                    fine_domain_lat_boundaries[sub_index_lat],
+                )
+                / 180.0
+                * np.pi
+            )
+            cell_lat_max = (
+                min(
+                    coarse_domain_lat_boundaries[lat_cell_index + 1],
+                    fine_domain_lat_boundaries[sub_index_lat + 1],
+                )
+                / 180.0
+                * np.pi
+            )
+            cell_lon_min = (
+                max(
+                    coarse_domain_lon_boundaries[lon_cell_index],
+                    fine_domain_lon_boundaries[sub_index_lon],
+                )
+                / 180.0
+                * np.pi
+            )
+            cell_lon_max = (
+                min(
+                    coarse_domain_lon_boundaries[lon_cell_index + 1],
+                    fine_domain_lon_boundaries[sub_index_lon + 1],
+                )
+                / 180.0
+                * np.pi
+            )
+
+            lat_dist = cell_lat_max - cell_lat_min
+            lon_dist = (cell_lon_max - cell_lon_min) * np.cos(
+                (cell_lat_max + cell_lat_min) / 2.0
+            )
+
+            area_subdivision_factor[cell_index, i] = lat_dist * lon_dist
+
+
+class Fine2Coarse2dInterpolator:
+    def __init__(
+        self,
+        *,
+        fine_lats: ArrayLike,
+        fine_lons: ArrayLike,
+        coarse_lats: ArrayLike,
+        coarse_lons: ArrayLike,
+        fine_mask: Optional[np.ndarray] = None,
+        coarse_mask: Optional[np.ndarray] = None,
+        fill_value: Real = np.nan,
+    ):
+        self._fine_lats = np.asarray(fine_lats)
+        self._fine_lons = np.asarray(fine_lons)
+        self._coarse_lats = np.asarray(coarse_lats)
+        self._coarse_lons = np.asarray(coarse_lons)
+
+        # Validate the arrays that define the grid
+        for arr in ("fine_lats", "fine_lons", "coarse_lats", "coarse_lons"):
+            arr_values = getattr(self, "_" + arr)
+            if arr_values.ndim != 1:
+                raise ValueError(f"{arr} must be 1-dimensional")
+            if arr_values.size < 2:
+                raise ValueError(f"{arr} must have at least 2 elements")
+            if np.any(arr_values[:-1] > arr_values[1:]):
+                raise ValueError(f"{arr} must be sorted in ascending order")
+
+        self._fine_shape = (len(fine_lats) - 1, len(fine_lons) - 1)
+        self._coarse_shape = (len(coarse_lats) - 1, len(coarse_lons) - 1)
+
+        self._fill_value = fill_value
+
+        if fine_mask is None:
+            fine_mask = np.broadcast_to(True, self._fine_shape)
+        if fine_mask.shape != self._fine_shape:
+            raise ValueError(
+                f"fine_mask must have shape {self._fine_shape}, "
+                f"got {fine_mask.shape}"
+            )
+        self._fine_mask = fine_mask
+
+        if coarse_mask is not None:
+            if coarse_mask.shape != self._coarse_shape:
+                raise ValueError(
+                    f"coarse_mask must have shape {self._coarse_shape}, "
+                    f"got {coarse_mask.shape}"
+                )
+
+        _lat_associations = _find_interval_overlapping(
+            self._fine_lats, self._coarse_lats
+        )
+        _lon_associations = _find_interval_overlapping(
+            self._fine_lons, self._coarse_lons
+        )
+
+        max_lat_associations = np.max(
+            _lat_associations[:, 1] - _lat_associations[:, 0]
+        )
+        max_lon_associations = np.max(
+            _lon_associations[:, 1] - _lon_associations[:, 0]
+        )
+        max_size = max_lat_associations * max_lon_associations
+
+        n_cells = self._coarse_shape[0] * self._coarse_shape[1]
+        temp_lat_indices = np.full((n_cells, max_size), -1, dtype=int)
+        temp_lon_indices = np.full((n_cells, max_size), -1, dtype=int)
+
+        _build_cell_associations(
+            _lat_associations,
+            _lon_associations,
+            self._fine_mask,
+            self._coarse_shape[0],
+            self._coarse_shape[1],
+            temp_lat_indices,
+            temp_lon_indices,
+        )
+
+        # We allocate an array to save the amount of area inside each cell
+        area_subdivision_factor = np.zeros(
+            (n_cells, max_size), dtype=np.float32
+        )
+
+        if coarse_mask is None:
+            valid_cells = np.ones((n_cells,), dtype=bool)
+        else:
+            valid_cells = coarse_mask.ravel(order="C")
+
+        _compute_area_subdivision(
+            lat_indices=temp_lat_indices,
+            lon_indices=temp_lon_indices,
+            fine_domain_lat_boundaries=self._fine_lats,
+            fine_domain_lon_boundaries=self._fine_lons,
+            coarse_domain_lat_boundaries=self._coarse_lats,
+            coarse_domain_lon_boundaries=self._coarse_lons,
+            valid_cells=valid_cells,
+            area_subdivision_factor=area_subdivision_factor,
+        )
+
+        if coarse_mask is None:
+            # Here we compute the total area of each cell. The radius of the
+            # Earth is considered to be 1; this choice is coherent with the
+            # behavior of the `_compute_area_subdivision` function
+            lat_dist = (self._coarse_lats[1:] - self._coarse_lats[:-1]) * (
+                np.pi / 180.0
+            )
+            lat_averages = (self._coarse_lats[1:] + self._coarse_lats[:-1]) * (
+                np.pi / 360.0
+            )
+            lon_dist_ignoring_lat = (
+                self._coarse_lons[1:] - self._coarse_lons[:-1]
+            ) * (np.pi / 180.0)
+            lon_dist = lon_dist_ignoring_lat * np.cos(
+                lat_averages[:, np.newaxis]
+            )
+
+            coarse_cell_area = lat_dist[:, np.newaxis] * lon_dist
+            covered_area = np.sum(area_subdivision_factor, axis=1)
+
+            coarse_mask = covered_area / coarse_cell_area.ravel(order="C") > 0.5
+            self.coarse_mask = coarse_mask.reshape(self._coarse_shape)
+        else:
+            self.coarse_mask = coarse_mask
+
+        max_n_associations = max(
+            np.count_nonzero(
+                temp_lat_indices[self.coarse_mask.ravel()] != -1, axis=1
+            )
+        )
+
+        self._lat_index_associations = temp_lat_indices[
+            self.coarse_mask.ravel(), :max_n_associations
+        ]
+        self._lon_index_associations = temp_lon_indices[
+            self.coarse_mask.ravel(), :max_n_associations
+        ]
+        self._weights = area_subdivision_factor[
+            self.coarse_mask.ravel(), :max_n_associations
+        ]
+        print(self._weights)
 
 
 def shift(M2d, pos, verso):
@@ -294,7 +590,7 @@ if __name__ == "__main__":
     A = space_interpolator_griddata(Mask2, Mask1, VAR)
     B = regular(Mask1, Mask2, VAR, method="nearest")
     C = compose_methods(Mask1, Mask2, VAR)
-    A[~Mask2.mask] = 1.0e20
+    A[~Mask2] = 1.0e20
 
     netcdf4.write_3d_file(A, "N1p", "griddata.nc", Mask2, fillValue=1e20)
     netcdf4.write_3d_file(B, "N1p", "regular.nc", Mask2, fillValue=1e20)
