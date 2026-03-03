@@ -820,6 +820,27 @@ class MaskWithRivers(Mask):
             e3t=e3t,
         )
 
+    def copy(self):
+        """
+        Return a copy of this MaskWithRivers, preserving river information.
+        """
+        # Reconstruct the 2D river_positions array from the stored river cells
+        # We assume the horizontal dimensions correspond to the last two axes
+        mask_array = np.asarray(self[:], dtype=bool)
+        ny, nx = mask_array.shape[1], mask_array.shape[2]
+        river_positions = np.zeros((ny, nx), dtype=int)
+        for river_cells in self._river_cells:
+            for (i, j), value in river_cells.items():
+                river_positions[i, j] = value
+
+        return self.__class__(
+            grid=self.grid,
+            zlevels=self.zlevels,
+            river_positions=river_positions,
+            mask_array=mask_array,
+            allow_broadcast=False,
+            e3t=getattr(self, "e3t", None),
+        )
     def get_water_cells(self) -> np.ndarray:
         output_data = np.copy(self[:])
         for depth_index, river_cells in enumerate(self._river_cells):
