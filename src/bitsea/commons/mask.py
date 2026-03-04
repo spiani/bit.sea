@@ -760,30 +760,28 @@ class MaskWithRivers(Mask):
         allow_broadcast: bool = False,
         e3t: Optional[np.ndarray] = None,
     ):
-        """
-        Initialize a MaskWithRivers object.
+        """Initialize a MaskWithRivers object.
 
-        Parameters
-        ----------
-        grid : Grid
-            The grid object defining the spatial domain.
-        zlevels : ArrayLike
-            The vertical levels of the mask (e.g., depth layers).
-        mask_array : ArrayLike
-            A boolean array indicating the presence of water (True) or land (False)
-            at each grid cell and depth level. Shape should be (len(zlevels), grid.shape[0], grid.shape[1]).
-        river_positions : ArrayLike
-            An array or sparse matrix indicating the positions of river cells in the grid.
-            Typically, this should be a 2D array (grid.shape[0], grid.shape[1]) where nonzero entries
-            indicate river cells and their values may represent river indices or IDs.
-        allow_broadcast : bool, optional
-            If True, allows broadcasting of mask_array to match the required shape. Default is False.
-        e3t : Optional[np.ndarray], optional
-            Optional array specifying the thickness of each vertical layer.
+        Args:
+            grid (Grid): The grid object defining the spatial domain.
+            zlevels (ArrayLike): The vertical levels of the mask (e.g., depth
+              layers).
+            mask_array (ArrayLike): A boolean array indicating the presence of
+              water (True) or land (False) at each grid cell and depth level.
+              Shape should be (len(zlevels), grid.shape[0], grid.shape[1]).
+            river_positions (ArrayLike): An array or sparse matrix indicating
+              the positions of river cells in the grid. Typically, this should
+              be a 2D array (grid.shape[0], grid.shape[1]) where nonzero
+              entries indicate river cells and their values may represent river
+              indices or IDs.
+            allow_broadcast (bool): If True, allows broadcasting of mask_array
+              to match the required shape. Default is False.
+            e3t (Optional[np.ndarray]): Optional array specifying the
+              thickness of each vertical layer.
 
-        Notes
-        -----
-        River cells are removed from the mask and stored separately for further processing.
+        Note:
+            River cells are removed from the mask and stored separately for
+            further processing.
         """
         rivers = np.asarray(river_positions)
 
@@ -868,18 +866,16 @@ class MaskWithRivers(Mask):
         )
 
     def get_water_cells(self) -> np.ndarray:
-        """
-        Return a boolean array of all water cells, including both sea and river cells.
+        """Return a boolean array of all water cells, including both sea and river cells.
 
         Unlike the parent class's mask (which excludes river cells), this method
         returns the combined mask of sea cells and river cells. This is useful when
         you need to treat rivers as part of the water domain.
 
-        Returns
-        -------
-        np.ndarray
-            A boolean array of the same shape as the mask, where True indicates
-            a water cell (either sea or river) and False indicates a land cell.
+        Returns:
+            np.ndarray: A boolean array of the same shape as the mask, where
+              True indicates a water cell (either sea or river) and False
+              indicates a land cell.
         """
         output_data = np.copy(self[:])
         for depth_index, river_cells in enumerate(self._river_cells):
