@@ -437,3 +437,30 @@ def test_mask_with_rivers_from_file(test_data_dir):
     assert np.all(
         np.logical_or(np.logical_and(rivers_mask, water_cells), ~rivers_mask)
     )
+
+
+@pytest.mark.uses_test_data
+def test_mask_with_rivers_copy(test_data_dir):
+    mask_dir = test_data_dir / "masks"
+    mask_file = mask_dir / "mask_with_rivers.nc"
+
+    rivers_mask = MaskWithRivers.from_file(mask_file)
+    copied_mask = rivers_mask.copy()
+
+    assert isinstance(copied_mask, MaskWithRivers)
+
+    # The sea mask should be preserved
+    assert np.all(np.asarray(rivers_mask[:]) == np.asarray(copied_mask[:]))
+
+    # The river-aware water mask should be preserved
+    assert np.all(rivers_mask.get_water_cells() == copied_mask.get_water_cells())
+
+    # Verify that the copy is independent: modifying the copy should not
+    # affect the original
+    original_sea_mask = np.copy(np.asarray(rivers_mask[:]))
+    copied_mask_array = np.asarray(copied_mask[:])
+    if np.any(copied_mask_array):
+        # Flip the first True value in the copied mask
+        idx = tuple(np.argwhere(copied_mask_array)[0])
+        copied_mask_array[idx] = False
+        assert np.all(np.asarray(rivers_mask[:]) == original_sea_mask)
