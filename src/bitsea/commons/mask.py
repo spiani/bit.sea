@@ -659,7 +659,6 @@ class Mask(BooleanArrayWrapper, Mesh):
                 "nav_lev", "f4", ("z",), **var_kwargs
             )
             nav_lev[:] = self.zlevels
-            nav_lev[:] = self.zlevels
 
             # Create the nav_lat NetCDF variable
             nav_lat = netCDF_out.createVariable(
